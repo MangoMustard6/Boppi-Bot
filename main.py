@@ -60,7 +60,7 @@ async def on_message(message):
     global auto_reply_enabled
 
 if message.author.bot:
-    return
+ return
 
 if auto_reply_enabled:
     msg = message.content.lower()
