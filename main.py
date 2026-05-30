@@ -38,13 +38,12 @@ async def hello(ctx):
 async def autoreply(ctx):
     global auto_reply_enabled
 
-```
-auto_reply_enabled = not auto_reply_enabled
+    auto_reply_enabled = not auto_reply_enabled
 
-if auto_reply_enabled:
-    await ctx.send("🤖 Auto Reply Enabled!")
-else:
-    await ctx.send("🔇 Auto Reply Disabled!")
+    if auto_reply_enabled:
+        await ctx.send("🤖 Auto Reply Enabled!")
+    else:
+        await ctx.send("🔇 Auto Reply Disabled!")
 ```
 
 @bot.command()
