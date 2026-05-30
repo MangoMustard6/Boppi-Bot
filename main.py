@@ -19,48 +19,51 @@ jokes = [
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user}")
+print(f"Logged in as {bot.user}")
 
 @bot.command()
 async def ping(ctx):
-    await ctx.send("🏓 Pong!")
+await ctx.send("🏓 Pong!")
 
 @bot.command()
 async def joke(ctx):
-    await ctx.send(random.choice(jokes))
+await ctx.send(random.choice(jokes))
 
 @bot.command()
 async def hello(ctx):
-    await ctx.send(f"Hello {ctx.author.mention}! 👋")
+await ctx.send(f"Hello {ctx.author.mention}! 👋")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def autoreply(ctx):
-    global auto_reply_enabled
+global auto_reply_enabled
 
-    auto_reply_enabled = not auto_reply_enabled
+```
+auto_reply_enabled = not auto_reply_enabled
 
-    if auto_reply_enabled:
-        await ctx.send("🤖 Auto Reply Enabled!")
-    else:
-        await ctx.send("🔇 Auto Reply Disabled!")
+if auto_reply_enabled:
+    await ctx.send("🤖 Auto Reply Enabled!")
+else:
+    await ctx.send("🔇 Auto Reply Disabled!")
+```
 
 @bot.command()
 async def tictactoe(ctx):
-    await ctx.send(
-        "🎮 Tic-Tac-Toe\n\n"
-        "1️⃣ 2️⃣ 3️⃣\n"
-        "4️⃣ 5️⃣ 6️⃣\n"
-        "7️⃣ 8️⃣ 9️⃣\n\n"
-        "Type numbers in chat to play manually!"
-    )
+await ctx.send(
+"🎮 Tic-Tac-Toe\n\n"
+"1️⃣ 2️⃣ 3️⃣\n"
+"4️⃣ 5️⃣ 6️⃣\n"
+"7️⃣ 8️⃣ 9️⃣\n\n"
+"Type numbers in chat to play manually!"
+)
 
 @bot.event
 async def on_message(message):
-    global auto_reply_enabled
+global auto_reply_enabled
 
+```
 if message.author.bot:
- return
+    return
 
 if auto_reply_enabled:
     msg = message.content.lower()
@@ -91,5 +94,7 @@ if auto_reply_enabled:
         await message.reply(random.choice(responses))
 
 await bot.process_commands(message)
+```
 
 bot.run(os.getenv("TOKEN"))
+
