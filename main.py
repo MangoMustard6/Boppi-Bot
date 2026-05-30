@@ -27,11 +27,11 @@ async def ping(ctx):
 
 @bot.command()
 async def joke(ctx):
-await ctx.send(random.choice(jokes))
+    await ctx.send(random.choice(jokes))
 
 @bot.command()
 async def hello(ctx):
-await ctx.send(f"Hello {ctx.author.mention}! 👋")
+    await ctx.send(f"Hello {ctx.author.mention}! 👋")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
