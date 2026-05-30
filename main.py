@@ -54,7 +54,7 @@ await ctx.send(
 "1️⃣ 2️⃣ 3️⃣\n"
 "4️⃣ 5️⃣ 6️⃣\n"
 "7️⃣ 8️⃣ 9️⃣\n\n"
-"Simple demo version!"
+"Type numbers in chat to play manually!"
 )
 
 @bot.event
@@ -80,6 +80,9 @@ if auto_reply_enabled:
     elif "bye" in msg:
         await message.reply("👋 Goodbye!")
 
+    elif "ping" in msg:
+        await message.reply("🏓 Pong!")
+
     else:
         responses = [
             "🤖 Interesting!",
@@ -94,4 +97,3 @@ await bot.process_commands(message)
 ```
 
 bot.run(os.getenv("TOKEN"))
-
