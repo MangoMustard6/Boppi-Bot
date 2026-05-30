@@ -1,6 +1,7 @@
 import discord
 import os
 import random
+import requests
 from discord.ext import commands
 
 # ================= INTENTS =================
@@ -9,15 +10,19 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ================= STATE =================
 auto_reply_enabled = False
 
 jokes = [
     "Why did the bot cross the road? 🤖",
-    "I tried to code a joke... it crashed.",
-    "Python is my sleep schedule.",
-    "I would tell you a UDP joke, but you might not get it."
+    "Python crashed again 💀",
+    "I told a UDP joke... it didn't arrive.",
+    "My CPU needs therapy."
 ]
+
+# ================= EMBED HELPER =================
+
+def make_embed(title, desc, color=0x00ffcc):
+    return discord.Embed(title=title, description=desc, color=color)
 
 # ================= EVENTS =================
 
@@ -32,28 +37,22 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    # 🤖 AI CHAT MODE TRIGGER
+    if bot.user.mentioned_in(message):
+        await ai_chat(message, message.content)
+
+    # 🤖 AUTO REPLY SYSTEM
     if auto_reply_enabled:
         msg = message.content.lower()
 
         if "hello" in msg:
             await message.reply("👋 Hello!")
         elif "hi" in msg:
-            await message.reply("😄 Hi there!")
-        elif "how are you" in msg:
-            await message.reply("🤖 I'm doing great!")
-        elif "bye" in msg:
-            await message.reply("👋 Goodbye!")
+            await message.reply("😄 Hi!")
         elif "ping" in msg:
             await message.reply("🏓 Pong!")
         else:
-            responses = [
-                "🤖 Interesting!",
-                "😄 Tell me more!",
-                "👀 I see.",
-                "✨ That's cool!",
-                "🎉 Nice!"
-            ]
-            await message.reply(random.choice(responses))
+            await message.reply(random.choice(["🤖 Hmm...", "✨ Interesting!", "👀 I see"]))
 
     await bot.process_commands(message)
 
@@ -61,27 +60,22 @@ async def on_message(message):
 
 @bot.command()
 async def ping(ctx):
-    await ctx.send("🏓 Pong!")
+    embed = make_embed("🏓 Pong!", f"Latency: {round(bot.latency * 1000)}ms")
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def joke(ctx):
-    await ctx.send(random.choice(jokes))
+    embed = make_embed("😂 Joke", random.choice(jokes))
+    await ctx.send(embed=embed)
 
 @bot.command()
-async def hello(ctx):
-    await ctx.send(f"Hello {ctx.author.mention}! 👋")
-
-@bot.command()
-async def roll(ctx):
-    await ctx.send(f"🎲 You rolled: {random.randint(1, 6)}")
-
-@bot.command()
-async def coinflip(ctx):
-    await ctx.send(f"🪙 {random.choice(['Heads', 'Tails'])}")
-
-@bot.command()
-async def say(ctx, *, text):
-    await ctx.send(text)
+async def help(ctx):
+    embed = make_embed(
+        "📌 Help Menu",
+        "!ping\n!joke\n!ai <message>\n!autoreply\n!embedtest",
+        0x3498db
+    )
+    await ctx.send(embed=embed)
 
 # ================= AUTOREPLY =================
 
@@ -91,146 +85,56 @@ async def autoreply(ctx):
     global auto_reply_enabled
     auto_reply_enabled = not auto_reply_enabled
 
-    await ctx.send(
-        "🤖 Auto Reply Enabled!" if auto_reply_enabled
-        else "🔇 Auto Reply Disabled!"
+    msg = "ON 🤖" if auto_reply_enabled else "OFF 🔇"
+    await ctx.send(embed=make_embed("Auto Reply", msg))
+
+# ================= EMBED TEST =================
+
+@bot.command()
+async def embedtest(ctx):
+    embed = discord.Embed(
+        title="✨ Embed System",
+        description="This is a clean embed message!",
+        color=0x2ecc71
     )
+    embed.add_field(name="Field 1", value="Hello world", inline=True)
+    embed.add_field(name="Field 2", value="Discord Bot", inline=True)
+    embed.set_footer(text="Powered by your bot")
+    await ctx.send(embed=embed)
 
-# ================= FUN COMMANDS =================
+# ================= AI CHAT SYSTEM =================
 
-@bot.command()
-async def joke2(ctx):
-    extra_jokes = [
-        "I'm not lazy, I'm just on energy-saving mode.",
-        "Why do programmers hate nature? Too many bugs.",
-        "I told my code a joke… it didn't compile."
-    ]
-    await ctx.send(random.choice(extra_jokes))
+async def ai_chat(message, user_text):
+    prompt = user_text.replace(f"<@{bot.user.id}>", "").strip()
 
-@bot.command()
-async def avatar(ctx, member: discord.Member = None):
-    member = member or ctx.author
-    await ctx.send(member.avatar.url)
+    if not prompt:
+        return await message.reply("Ask me something 🤖")
 
-@bot.command()
-async def echo(ctx, *, msg):
-    await ctx.send(f"📢 {msg}")
+    try:
+        # Simple free AI endpoint (no key required)
+        response = requests.get(
+            f"https://api.popcat.xyz/chatbot?msg={prompt}&owner=Bot&botname=AI"
+        ).json()
 
-# ================= TIC TAC TOE PLACEHOLDER =================
+        reply = response.get("response", "I don't know that 😅")
 
-@bot.command()
-async def tictactoe(ctx):
-    await ctx.send(
-        "🎮 Tic-Tac-Toe\n\n"
-        "1️⃣ 2️⃣ 3️⃣\n"
-        "4️⃣ 5️⃣ 6️⃣\n"
-        "7️⃣ 8️⃣ 9️⃣\n\n"
-        "👉 (Interactive version coming soon)"
-    )
+        embed = discord.Embed(
+            title="🤖 AI Response",
+            description=reply,
+            color=0x9b59b6
+        )
 
-# ================= RUN BOT =================
+        await message.reply(embed=embed)
 
-bot.run(os.getenv("TOKEN"))
-@bot.command()
-async def joke(ctx): await ctx.send(random.choice(jokes))
+    except:
+        await message.reply("⚠️ AI is currently unavailable.")
+
+# ================= AI COMMAND =================
 
 @bot.command()
-async def help(ctx):
-    await ctx.send("!ping !joke !rps !coinflip !tictactoe !autoreply")
+async def ai(ctx, *, msg):
+    await ai_chat(ctx.message, msg)
 
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def autoreply(ctx):
-    global auto
-    auto = not auto
-    await ctx.send("ON 🤖" if auto else "OFF 🔇")
-
-# ================= GAMES =================
-@bot.command()
-async def coinflip(ctx):
-    await ctx.send(random.choice(["Heads", "Tails"]))
-
-@bot.command()
-async def rps(ctx, c):
-    b = random.choice(["rock","paper","scissors"])
-    if c == b: r="Draw"
-    elif (c,b) in [("rock","scissors"),("paper","rock"),("scissors","paper")]:
-        r="Win"
-    else: r="Lose"
-    await ctx.send(f"You:{c} Bot:{b} {r}")
-
-# ================= TIC TAC TOE =================
-class B(discord.ui.Button):
-    def __init__(s,x,y):
-        super().__init__(label="➖", row=y); s.x=x; s.y=y
-
-    async def callback(s,i):
-        v=s.view
-        if i.user!=v.turn: return await i.response.send_message("No turn",ephemeral=True)
-        if v.b[s.y][s.x]!=" ": return await i.response.send_message("Taken",ephemeral=True)
-
-        s.view.b[s.y][s.x]=v.sym[i.user]
-        s.label=v.sym[i.user]
-        s.disabled=True
-
-        if v.win(v.sym[i.user]):
-            for c in v.children: c.disabled=True
-            return await i.response.edit_message(content=f"{i.user} wins!",view=v)
-
-        v.turn = v.p2 if v.turn==v.p1 else v.p1
-
-        await i.response.edit_message(content=f"Turn {v.turn}",view=v)
-
-class V(discord.ui.View):
-    def __init__(s,p1,p2):
-        super().__init__(timeout=120)
-        s.p1,s.p2=p1,p2
-        s.turn=p1
-        s.sym={p1:"X",p2:"O"}
-        s.b=[[" "]*3 for _ in range(3)]
-        for y in range(3):
-            for x in range(3):
-                s.add_item(B(x,y))
-
-    def win(s,x):
-        b=s.b
-        return any(all(c==x for c in r) for r in b) or \
-               any(all(b[i][c]==x for i in range(3)) for c in range(3)) or \
-               all(b[i][i]==x for i in range(3)) or \
-               all(b[i][2-i]==x for i in range(3))
-
-@bot.command()
-async def tictactoe(ctx, opp: discord.Member):
-    await ctx.send(f"{ctx.author} vs {opp}", view=V(ctx.author,opp))
-
-# ================= SLASH =================
-@bot.event
-async def on_ready():
-    await bot.tree.sync()
-    print("Ready")
-
-@bot.tree.command()
-async def ping(i): await i.response.send_message("🏓 Pong!")
-
-@bot.tree.command()
-async def joke(i): await i.response.send_message(random.choice(jokes))
-
-@bot.tree.command()
-async def coinflip(i): await i.response.send_message(random.choice(["H","T"]))
-
-@bot.tree.command()
-async def autoreply(i):
-    global auto
-    auto = not auto
-    await i.response.send_message("ON" if auto else "OFF")
-
-@bot.tree.command()
-async def rps(i,c):
-    b=random.choice(["rock","paper","scissors"])
-    await i.response.send_message(f"You:{c} Bot:{b}")
-
-@bot.tree.command()
-async def tictactoe(i,opp: discord.Member):
-    await i.response.send_message(f"{i.user} vs {opp}", view=V(i.user,opp))
+# ================= RUN =================
 
 bot.run(os.getenv("TOKEN"))
