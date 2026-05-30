@@ -1,7 +1,7 @@
 import discord
 import os
 import random
-import requests
+import aiohttp
 from discord.ext import commands
 
 # ================= INTENTS =================
@@ -10,18 +10,18 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ================= STATE =================
 auto_reply_enabled = False
 
 jokes = [
     "Why did the bot cross the road? 🤖",
     "Python crashed again 💀",
-    "I told a UDP joke... it didn't arrive.",
-    "My CPU needs therapy."
+    "UDP joke lost in transit.",
+    "My CPU needs coffee."
 ]
 
 # ================= EMBED HELPER =================
-
-def make_embed(title, desc, color=0x00ffcc):
+def embed(title, desc, color=0x00ffcc):
     return discord.Embed(title=title, description=desc, color=color)
 
 # ================= EVENTS =================
@@ -37,11 +37,11 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # 🤖 AI CHAT MODE TRIGGER
-    if bot.user.mentioned_in(message):
+    # AI trigger via mention
+    if bot.user in message.mentions:
         await ai_chat(message, message.content)
 
-    # 🤖 AUTO REPLY SYSTEM
+    # Auto reply system
     if auto_reply_enabled:
         msg = message.content.lower()
 
@@ -52,7 +52,7 @@ async def on_message(message):
         elif "ping" in msg:
             await message.reply("🏓 Pong!")
         else:
-            await message.reply(random.choice(["🤖 Hmm...", "✨ Interesting!", "👀 I see"]))
+            await message.reply(random.choice(["🤖 Hmm...", "✨ Nice!", "👀 I see"]))
 
     await bot.process_commands(message)
 
@@ -60,22 +60,27 @@ async def on_message(message):
 
 @bot.command()
 async def ping(ctx):
-    embed = make_embed("🏓 Pong!", f"Latency: {round(bot.latency * 1000)}ms")
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed("🏓 Pong!", f"{round(bot.latency*1000)}ms"))
 
 @bot.command()
 async def joke(ctx):
-    embed = make_embed("😂 Joke", random.choice(jokes))
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed("😂 Joke", random.choice(jokes)))
+
+@bot.command()
+async def hello(ctx):
+    await ctx.send(f"Hello {ctx.author.mention}! 👋")
+
+@bot.command()
+async def coinflip(ctx):
+    await ctx.send(f"🪙 {random.choice(['Heads', 'Tails'])}")
+
+@bot.command()
+async def roll(ctx):
+    await ctx.send(f"🎲 {random.randint(1,6)}")
 
 @bot.command()
 async def help(ctx):
-    embed = make_embed(
-        "📌 Help Menu",
-        "!ping\n!joke\n!ai <message>\n!autoreply\n!embedtest",
-        0x3498db
-    )
-    await ctx.send(embed=embed)
+    await ctx.send("!ping !joke !ai !coinflip !roll !autoreply")
 
 # ================= AUTOREPLY =================
 
@@ -84,50 +89,29 @@ async def help(ctx):
 async def autoreply(ctx):
     global auto_reply_enabled
     auto_reply_enabled = not auto_reply_enabled
+    await ctx.send("ON 🤖" if auto_reply_enabled else "OFF 🔇")
 
-    msg = "ON 🤖" if auto_reply_enabled else "OFF 🔇"
-    await ctx.send(embed=make_embed("Auto Reply", msg))
+# ================= AI CHAT (SAFE FIXED VERSION) =================
 
-# ================= EMBED TEST =================
-
-@bot.command()
-async def embedtest(ctx):
-    embed = discord.Embed(
-        title="✨ Embed System",
-        description="This is a clean embed message!",
-        color=0x2ecc71
-    )
-    embed.add_field(name="Field 1", value="Hello world", inline=True)
-    embed.add_field(name="Field 2", value="Discord Bot", inline=True)
-    embed.set_footer(text="Powered by your bot")
-    await ctx.send(embed=embed)
-
-# ================= AI CHAT SYSTEM =================
-
-async def ai_chat(message, user_text):
-    prompt = user_text.replace(f"<@{bot.user.id}>", "").strip()
+async def ai_chat(message, text):
+    prompt = text.replace(f"<@{bot.user.id}>", "").strip()
 
     if not prompt:
         return await message.reply("Ask me something 🤖")
 
     try:
-        # Simple free AI endpoint (no key required)
-        response = requests.get(
-            f"https://api.popcat.xyz/chatbot?msg={prompt}&owner=Bot&botname=AI"
-        ).json()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"https://api.popcat.xyz/chatbot?msg={prompt}&owner=Bot&botname=AI"
+            ) as resp:
+                data = await resp.json()
 
-        reply = response.get("response", "I don't know that 😅")
+        reply = data.get("response", "I don't know that 😅")
 
-        embed = discord.Embed(
-            title="🤖 AI Response",
-            description=reply,
-            color=0x9b59b6
-        )
-
-        await message.reply(embed=embed)
+        await message.reply(embed=embed("🤖 AI", reply, 0x9b59b6))
 
     except:
-        await message.reply("⚠️ AI is currently unavailable.")
+        await message.reply("⚠️ AI service unavailable.")
 
 # ================= AI COMMAND =================
 
@@ -135,6 +119,6 @@ async def ai_chat(message, user_text):
 async def ai(ctx, *, msg):
     await ai_chat(ctx.message, msg)
 
-# ================= RUN =================
+# ================= RUN BOT =================
 
 bot.run(os.getenv("TOKEN"))
