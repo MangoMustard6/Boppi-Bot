@@ -92,7 +92,6 @@ if auto_reply_enabled:
         await message.reply(random.choice(responses))
 
 await bot.process_commands(message)
-```
 
 bot.run(os.getenv("TOKEN"))
 
