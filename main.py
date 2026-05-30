@@ -44,17 +44,16 @@ async def autoreply(ctx):
         await ctx.send("🤖 Auto Reply Enabled!")
     else:
         await ctx.send("🔇 Auto Reply Disabled!")
-```
 
 @bot.command()
 async def tictactoe(ctx):
-await ctx.send(
-"🎮 Tic-Tac-Toe\n\n"
-"1️⃣ 2️⃣ 3️⃣\n"
-"4️⃣ 5️⃣ 6️⃣\n"
-"7️⃣ 8️⃣ 9️⃣\n\n"
-"Type numbers in chat to play manually!"
-)
+    await ctx.send(
+        "🎮 Tic-Tac-Toe\n\n"
+        "1️⃣ 2️⃣ 3️⃣\n"
+        "4️⃣ 5️⃣ 6️⃣\n"
+        "7️⃣ 8️⃣ 9️⃣\n\n"
+        "Type numbers in chat to play manually!"
+    )
 
 @bot.event
 async def on_message(message):
@@ -93,6 +92,5 @@ if auto_reply_enabled:
         await message.reply(random.choice(responses))
 
 await bot.process_commands(message)
-```
 
 bot.run(os.getenv("TOKEN"))
