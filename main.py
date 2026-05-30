@@ -8,25 +8,24 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="bop!", intents=intents)
 
 # ================= STATE =================
 auto_reply_enabled = False
 
 jokes = [
     "Why did the bot cross the road? 🤖",
-    "Python crashed again 💀",
-    "UDP joke got lost.",
-    "My CPU is emotionally unstable.",
-    "I tried to code a joke... it errored."
+    "I tried to code a joke... it crashed.",
+    "Python is my sleep schedule.",
+    "UDP jokes are unreliable 😂"
 ]
 
 auto_responses = [
     "🤖 Interesting!",
-    "✨ Cool!",
+    "😄 Tell me more!",
     "👀 I see.",
-    "🎉 Nice!",
-    "😄 Tell me more!"
+    "✨ That's cool!",
+    "🎉 Nice!"
 ]
 
 # =========================================================
@@ -48,7 +47,7 @@ async def on_message(message):
         elif "hi" in msg:
             await message.reply("😄 Hi!")
         elif "how are you" in msg:
-            await message.reply("🤖 I'm doing great!")
+            await message.reply("🤖 I'm good!")
         elif "bye" in msg:
             await message.reply("👋 Bye!")
         elif "ping" in msg:
@@ -58,8 +57,9 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
+
 # =========================================================
-# 📌 BASIC COMMANDS
+# 📌 BASIC COMMANDS (PREFIX)
 # =========================================================
 
 @bot.command()
@@ -73,14 +73,15 @@ async def joke(ctx):
 @bot.command()
 async def help(ctx):
     await ctx.send(
-        "**📌 Commands List**\n"
-        "!ping - Check bot latency\n"
+        "📌 Commands:\n"
+        "!ping - Pong\n"
         "!joke - Random joke\n"
-        "!rps <rock/paper/scissors>\n"
+        "!autoreply - Toggle bot chat replies\n"
+        "!rps rock/paper/scissors\n"
         "!coinflip\n"
-        "!tictactoe @user\n"
-        "!autoreply (admin only)\n"
+        "!tictactoe @user"
     )
+
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -89,37 +90,43 @@ async def autoreply(ctx):
     auto_reply_enabled = not auto_reply_enabled
 
     await ctx.send(
-        "🤖 Auto Reply ENABLED" if auto_reply_enabled else "🔇 Auto Reply DISABLED"
+        "🤖 Auto Reply Enabled!" if auto_reply_enabled
+        else "🔇 Auto Reply Disabled!"
     )
 
-# =========================================================
-# 🎮 MINI GAMES
-# =========================================================
 
-@bot.command()
-async def coinflip(ctx):
-    await ctx.send(f"🪙 {random.choice(['Heads', 'Tails'])}")
+# =========================================================
+# 🎮 GAMES
+# =========================================================
 
 @bot.command()
 async def rps(ctx, choice: str):
-    options = ["rock", "paper", "scissors"]
-    bot_choice = random.choice(options)
+    choices = ["rock", "paper", "scissors"]
+    bot_choice = random.choice(choices)
 
     choice = choice.lower()
 
-    if choice not in options:
+    if choice not in choices:
         return await ctx.send("Use rock, paper, or scissors!")
 
     if choice == bot_choice:
         result = "🤝 Draw!"
-    elif (choice == "rock" and bot_choice == "scissors") or \
-         (choice == "paper" and bot_choice == "rock") or \
-         (choice == "scissors" and bot_choice == "paper"):
+    elif (
+        (choice == "rock" and bot_choice == "scissors") or
+        (choice == "paper" and bot_choice == "rock") or
+        (choice == "scissors" and bot_choice == "paper")
+    ):
         result = "🏆 You win!"
     else:
         result = "😈 You lose!"
 
     await ctx.send(f"You: {choice}\nBot: {bot_choice}\n{result}")
+
+
+@bot.command()
+async def coinflip(ctx):
+    await ctx.send(f"🪙 {random.choice(['Heads', 'Tails'])}")
+
 
 # =========================================================
 # 🎮 TIC TAC TOE (BUTTON GAME)
@@ -138,7 +145,7 @@ class TicTacToeButton(discord.ui.Button):
             return await interaction.response.send_message("⏳ Not your turn!", ephemeral=True)
 
         if view.board[self.y][self.x] != " ":
-            return await interaction.response.send_message("❌ Already taken!", ephemeral=True)
+            return await interaction.response.send_message("❌ Taken!", ephemeral=True)
 
         symbol = view.symbols[interaction.user]
         view.board[self.y][self.x] = symbol
@@ -163,7 +170,7 @@ class TicTacToeButton(discord.ui.Button):
             view.stop()
 
             return await interaction.response.edit_message(
-                content="🤝 It's a draw!",
+                content="🤝 Draw!",
                 view=view
             )
 
@@ -196,8 +203,8 @@ class TicTacToeView(discord.ui.View):
     def check_winner(self, s):
         b = self.board
         return (
-            any(all(cell == s for cell in row) for row in b) or
-            any(all(b[r][c] == s for r in range(3)) for c in range(3)) or
+            any(all(c == s for c in r) for r in b) or
+            any(all(b[i][c] == s for i in range(3)) for c in range(3)) or
             all(b[i][i] == s for i in range(3)) or
             all(b[i][2 - i] == s for i in range(3))
         )
@@ -205,16 +212,96 @@ class TicTacToeView(discord.ui.View):
     def is_draw(self):
         return all(cell != " " for row in self.board for cell in row)
 
+
+@bot.command()
+async def tictactoe(ctx, opponent: discord.Member):
+    view = TicTacToeView(ctx.author, opponent)
+
+    await ctx.send(
+        f"🎮 TicTacToe\n{ctx.author.mention} vs {opponent.mention}",
+        view=view
+    )
+
+
 # =========================================================
-# 🚀 READY
+# 🌐 SLASH COMMANDS
 # =========================================================
 
 @bot.event
 async def on_ready():
+    await bot.tree.sync()
     print(f"Logged in as {bot.user}")
 
+
+@bot.tree.command(name="ping")
+async def slash_ping(interaction: discord.Interaction):
+    await interaction.response.send_message("🏓 Pong!")
+
+@bot.tree.command(name="joke")
+async def slash_joke(interaction: discord.Interaction):
+    await interaction.response.send_message(random.choice(jokes))
+
+@bot.tree.command(name="help")
+async def slash_help(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "📌 /ping /joke /rps /coinflip /tictactoe /autoreply"
+    )
+
+@bot.tree.command(name="autoreply")
+async def slash_auto(interaction: discord.Interaction):
+    global auto_reply_enabled
+    auto_reply_enabled = not auto_reply_enabled
+
+    await interaction.response.send_message(
+        "🤖 Auto Reply ON" if auto_reply_enabled else "🔇 Auto Reply OFF"
+    )
+
+
+@bot.tree.command(name="coinflip")
+async def slash_coin(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        f"🪙 {random.choice(['Heads', 'Tails'])}"
+    )
+
+
+@bot.tree.command(name="rps")
+async def slash_rps(interaction: discord.Interaction, choice: str):
+    choices = ["rock", "paper", "scissors"]
+    bot_choice = random.choice(choices)
+
+    choice = choice.lower()
+
+    if choice not in choices:
+        return await interaction.response.send_message("Use rock/paper/scissors")
+
+    if choice == bot_choice:
+        result = "🤝 Draw!"
+    elif (
+        (choice == "rock" and bot_choice == "scissors") or
+        (choice == "paper" and bot_choice == "rock") or
+        (choice == "scissors" and bot_choice == "paper")
+    ):
+        result = "🏆 You win!"
+    else:
+        result = "😈 You lose!"
+
+    await interaction.response.send_message(
+        f"You: {choice}\nBot: {bot_choice}\n{result}"
+    )
+
+
+@bot.tree.command(name="tictactoe")
+async def slash_ttt(interaction: discord.Interaction, opponent: discord.Member):
+    view = TicTacToeView(interaction.user, opponent)
+
+    await interaction.response.send_message(
+        f"🎮 TicTacToe\n{interaction.user.mention} vs {opponent.mention}",
+        view=view
+    )
+
+
 # =========================================================
-# RUN BOT
+# 🚀 RUN BOT
 # =========================================================
 
 bot.run(os.getenv("TOKEN"))
