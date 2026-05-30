@@ -70,7 +70,7 @@ async def ping(ctx):
 async def joke(ctx):
     await ctx.send(random.choice(jokes))
 
-@bot.command()
+    @bot.command()
 async def help(ctx):
     await ctx.send(
         "📌 Commands:\n"
