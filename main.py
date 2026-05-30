@@ -23,29 +23,27 @@ async def on_ready():
 
 @bot.command()
 async def ping(ctx):
-await ctx.send("🏓 Pong!")
+    await ctx.send("🏓 Pong!")
 
 @bot.command()
 async def joke(ctx):
-await ctx.send(random.choice(jokes))
+    await ctx.send(random.choice(jokes))
 
 @bot.command()
 async def hello(ctx):
-await ctx.send(f"Hello {ctx.author.mention}! 👋")
+    await ctx.send(f"Hello {ctx.author.mention}! 👋")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def autoreply(ctx):
 global auto_reply_enabled
 
-```
 auto_reply_enabled = not auto_reply_enabled
 
 if auto_reply_enabled:
     await ctx.send("🤖 Auto Reply Enabled!")
 else:
     await ctx.send("🔇 Auto Reply Disabled!")
-```
 
 @bot.command()
 async def tictactoe(ctx):
@@ -59,9 +57,8 @@ await ctx.send(
 
 @bot.event
 async def on_message(message):
-global auto_reply_enabled
+    global auto_reply_enabled
 
-```
 if message.author.bot:
     return
 
