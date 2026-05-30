@@ -1,7 +1,6 @@
 import discord
 import os
 import random
-import aiohttp
 from discord.ext import commands
 
 # ================= INTENTS =================
@@ -16,8 +15,8 @@ auto_reply_enabled = False
 jokes = [
     "Why did the bot cross the road? 🤖",
     "Python crashed again 💀",
-    "UDP joke lost in transit.",
-    "My CPU needs coffee."
+    "UDP packets lost in space.",
+    "My CPU is on vacation."
 ]
 
 # ================= EMBED HELPER =================
@@ -37,7 +36,7 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # AI trigger via mention
+    # AI trigger (mention bot)
     if bot.user in message.mentions:
         await ai_chat(message, message.content)
 
@@ -60,7 +59,7 @@ async def on_message(message):
 
 @bot.command()
 async def ping(ctx):
-    await ctx.send(embed=embed("🏓 Pong!", f"{round(bot.latency*1000)}ms"))
+    await ctx.send(embed=embed("🏓 Pong!", f"{round(bot.latency * 1000)}ms"))
 
 @bot.command()
 async def joke(ctx):
@@ -68,7 +67,7 @@ async def joke(ctx):
 
 @bot.command()
 async def hello(ctx):
-    await ctx.send(f"Hello {ctx.author.mention}! 👋")
+    await ctx.send(f"👋 Hello {ctx.author.mention}")
 
 @bot.command()
 async def coinflip(ctx):
@@ -76,7 +75,11 @@ async def coinflip(ctx):
 
 @bot.command()
 async def roll(ctx):
-    await ctx.send(f"🎲 {random.randint(1,6)}")
+    await ctx.send(f"🎲 {random.randint(1, 6)}")
+
+@bot.command()
+async def say(ctx, *, msg):
+    await ctx.send(msg)
 
 @bot.command()
 async def help(ctx):
@@ -91,27 +94,28 @@ async def autoreply(ctx):
     auto_reply_enabled = not auto_reply_enabled
     await ctx.send("ON 🤖" if auto_reply_enabled else "OFF 🔇")
 
-# ================= AI CHAT (SAFE FIXED VERSION) =================
+# ================= SIMPLE AI (NO REQUESTS, NO AIOHTTP) =================
 
 async def ai_chat(message, text):
-    prompt = text.replace(f"<@{bot.user.id}>", "").strip()
+    prompt = text.lower()
+
+    # remove mention text
+    prompt = prompt.replace(f"<@{bot.user.id}>", "").strip()
 
     if not prompt:
-        return await message.reply("Ask me something 🤖")
+        await message.reply("Ask me something 🤖")
+        return
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"https://api.popcat.xyz/chatbot?msg={prompt}&owner=Bot&botname=AI"
-            ) as resp:
-                data = await resp.json()
+    # SIMPLE "AI STYLE" RESPONSES (NO API = NO ERRORS)
+    responses = [
+        f"🤖 Interesting question: {prompt}",
+        "✨ Let me think... that's cool!",
+        "👀 I understand you.",
+        "🧠 That's a deep one!",
+        "🤖 I'm still learning, but that sounds cool!"
+    ]
 
-        reply = data.get("response", "I don't know that 😅")
-
-        await message.reply(embed=embed("🤖 AI", reply, 0x9b59b6))
-
-    except:
-        await message.reply("⚠️ AI service unavailable.")
+    await message.reply(embed=embed("AI Response", random.choice(responses), 0x9b59b6))
 
 # ================= AI COMMAND =================
 
@@ -121,4 +125,9 @@ async def ai(ctx, *, msg):
 
 # ================= RUN BOT =================
 
-bot.run(os.getenv("TOKEN"))
+token = os.getenv("TOKEN")
+
+if not token:
+    print("❌ TOKEN not found in environment variables!")
+else:
+    bot.run(token)
