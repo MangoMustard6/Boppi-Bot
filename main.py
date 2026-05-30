@@ -36,7 +36,7 @@ async def hello(ctx):
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def autoreply(ctx):
-global auto_reply_enabled
+    global auto_reply_enabled
 
 auto_reply_enabled = not auto_reply_enabled
 
