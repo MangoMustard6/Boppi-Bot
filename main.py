@@ -1,40 +1,136 @@
-import discord, random, os
+import discord
+import os
+import random
 from discord.ext import commands
 
+# ================= INTENTS =================
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-auto = False
+# ================= STATE =================
+auto_reply_enabled = False
 
 jokes = [
-    "Bot crossed road 🤖",
-    "Python crashed 💀",
-    "UDP joke lost.",
-    "CPU emotional damage."
+    "Why did the bot cross the road? 🤖",
+    "I tried to code a joke... it crashed.",
+    "Python is my sleep schedule.",
+    "I would tell you a UDP joke, but you might not get it."
 ]
 
-# ================= AUTO REPLY =================
+# ================= EVENTS =================
+
 @bot.event
-async def on_message(m):
-    global auto
-    if m.author.bot: return
+async def on_ready():
+    print(f"Logged in as {bot.user}")
 
-    if auto:
-        t = m.content.lower()
-        if "hello" in t: await m.reply("👋 Hi!")
-        elif "hi" in t: await m.reply("😄 Hello!")
-        elif "ping" in t: await m.reply("🏓 Pong!")
-        else: await m.reply(random.choice(["🤖 ok", "✨ nice", "👀 hmm"]))
+@bot.event
+async def on_message(message):
+    global auto_reply_enabled
 
-    await bot.process_commands(m)
+    if message.author.bot:
+        return
 
-# ================= COMMANDS =================
+    if auto_reply_enabled:
+        msg = message.content.lower()
+
+        if "hello" in msg:
+            await message.reply("👋 Hello!")
+        elif "hi" in msg:
+            await message.reply("😄 Hi there!")
+        elif "how are you" in msg:
+            await message.reply("🤖 I'm doing great!")
+        elif "bye" in msg:
+            await message.reply("👋 Goodbye!")
+        elif "ping" in msg:
+            await message.reply("🏓 Pong!")
+        else:
+            responses = [
+                "🤖 Interesting!",
+                "😄 Tell me more!",
+                "👀 I see.",
+                "✨ That's cool!",
+                "🎉 Nice!"
+            ]
+            await message.reply(random.choice(responses))
+
+    await bot.process_commands(message)
+
+# ================= BASIC COMMANDS =================
+
 @bot.command()
-async def ping(ctx): await ctx.send("🏓 Pong!")
+async def ping(ctx):
+    await ctx.send("🏓 Pong!")
 
+@bot.command()
+async def joke(ctx):
+    await ctx.send(random.choice(jokes))
+
+@bot.command()
+async def hello(ctx):
+    await ctx.send(f"Hello {ctx.author.mention}! 👋")
+
+@bot.command()
+async def roll(ctx):
+    await ctx.send(f"🎲 You rolled: {random.randint(1, 6)}")
+
+@bot.command()
+async def coinflip(ctx):
+    await ctx.send(f"🪙 {random.choice(['Heads', 'Tails'])}")
+
+@bot.command()
+async def say(ctx, *, text):
+    await ctx.send(text)
+
+# ================= AUTOREPLY =================
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def autoreply(ctx):
+    global auto_reply_enabled
+    auto_reply_enabled = not auto_reply_enabled
+
+    await ctx.send(
+        "🤖 Auto Reply Enabled!" if auto_reply_enabled
+        else "🔇 Auto Reply Disabled!"
+    )
+
+# ================= FUN COMMANDS =================
+
+@bot.command()
+async def joke2(ctx):
+    extra_jokes = [
+        "I'm not lazy, I'm just on energy-saving mode.",
+        "Why do programmers hate nature? Too many bugs.",
+        "I told my code a joke… it didn't compile."
+    ]
+    await ctx.send(random.choice(extra_jokes))
+
+@bot.command()
+async def avatar(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    await ctx.send(member.avatar.url)
+
+@bot.command()
+async def echo(ctx, *, msg):
+    await ctx.send(f"📢 {msg}")
+
+# ================= TIC TAC TOE PLACEHOLDER =================
+
+@bot.command()
+async def tictactoe(ctx):
+    await ctx.send(
+        "🎮 Tic-Tac-Toe\n\n"
+        "1️⃣ 2️⃣ 3️⃣\n"
+        "4️⃣ 5️⃣ 6️⃣\n"
+        "7️⃣ 8️⃣ 9️⃣\n\n"
+        "👉 (Interactive version coming soon)"
+    )
+
+# ================= RUN BOT =================
+
+bot.run(os.getenv("TOKEN"))
 @bot.command()
 async def joke(ctx): await ctx.send(random.choice(jokes))
 
