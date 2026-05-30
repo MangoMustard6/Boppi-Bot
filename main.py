@@ -47,7 +47,8 @@ else:
 
 @bot.command()
 async def tictactoe(ctx):
-await ctx.send(
+    await ctx.send(
+        
 "🎮 Tic-Tac-Toe\n\n"
 "1️⃣ 2️⃣ 3️⃣\n"
 "4️⃣ 5️⃣ 6️⃣\n"
