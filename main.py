@@ -71,8 +71,8 @@ async def joke(ctx):
     await ctx.send(random.choice(jokes))
 
     @bot.command()
-async def help(ctx):
-    await ctx.send(
+    async def help(ctx):
+        await ctx.send(
         "📌 Commands:\n"
         "!ping - Pong\n"
         "!joke - Random joke\n"
