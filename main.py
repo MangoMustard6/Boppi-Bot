@@ -2,15 +2,13 @@ import discord
 from discord.ext import commands
 import random
 import os
-import subprocess
-import time
 
 # ================= INTENTS =================
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="bop!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ================= STATE =================
 auto_reply_enabled = False
@@ -18,8 +16,17 @@ auto_reply_enabled = False
 jokes = [
     "Why did the bot cross the road? 🤖",
     "Python crashed again 💀",
-    "UDP joke not delivered.",
-    "My CPU is emotionally unstable."
+    "UDP joke got lost.",
+    "My CPU is emotionally unstable.",
+    "I tried to code a joke... it errored."
+]
+
+auto_responses = [
+    "🤖 Interesting!",
+    "✨ Cool!",
+    "👀 I see.",
+    "🎉 Nice!",
+    "😄 Tell me more!"
 ]
 
 # =========================================================
@@ -40,22 +47,19 @@ async def on_message(message):
             await message.reply("👋 Hello!")
         elif "hi" in msg:
             await message.reply("😄 Hi!")
+        elif "how are you" in msg:
+            await message.reply("🤖 I'm doing great!")
         elif "bye" in msg:
             await message.reply("👋 Bye!")
         elif "ping" in msg:
             await message.reply("🏓 Pong!")
         else:
-            await message.reply(random.choice([
-                "🤖 Interesting!",
-                "✨ Cool!",
-                "👀 I see.",
-                "🎉 Nice!"
-            ]))
+            await message.reply(random.choice(auto_responses))
 
     await bot.process_commands(message)
 
 # =========================================================
-# 📌 FUN COMMANDS
+# 📌 BASIC COMMANDS
 # =========================================================
 
 @bot.command()
@@ -69,13 +73,13 @@ async def joke(ctx):
 @bot.command()
 async def help(ctx):
     await ctx.send(
-        "📌 Commands:\n"
-        "!ping\n"
-        "!joke\n"
-        "!autoreply\n"
+        "**📌 Commands List**\n"
+        "!ping - Check bot latency\n"
+        "!joke - Random joke\n"
         "!rps <rock/paper/scissors>\n"
         "!coinflip\n"
-        "!ffmpeg (upload video)\n"
+        "!tictactoe @user\n"
+        "!autoreply (admin only)\n"
     )
 
 @bot.command()
@@ -85,7 +89,7 @@ async def autoreply(ctx):
     auto_reply_enabled = not auto_reply_enabled
 
     await ctx.send(
-        "🤖 Auto Reply Enabled!" if auto_reply_enabled else "🔇 Auto Reply Disabled!"
+        "🤖 Auto Reply ENABLED" if auto_reply_enabled else "🔇 Auto Reply DISABLED"
     )
 
 # =========================================================
@@ -118,52 +122,99 @@ async def rps(ctx, choice: str):
     await ctx.send(f"You: {choice}\nBot: {bot_choice}\n{result}")
 
 # =========================================================
-# 🎛️ FFmpeg VIDEO EDITOR COMMAND
+# 🎮 TIC TAC TOE (BUTTON GAME)
 # =========================================================
 
-@bot.command()
-async def ffmpeg(ctx):
-    if not ctx.message.attachments:
-        return await ctx.send("📎 Upload a video with the command!")
+class TicTacToeButton(discord.ui.Button):
+    def __init__(self, x, y):
+        super().__init__(label="➖", style=discord.ButtonStyle.secondary, row=y)
+        self.x = x
+        self.y = y
 
-    file = ctx.message.attachments[0]
+    async def callback(self, interaction: discord.Interaction):
+        view: TicTacToeView = self.view
 
-    if not file.filename.endswith((".mp4", ".mov", ".mkv")):
-        return await ctx.send("❌ Please upload a video file!")
+        if interaction.user != view.current_player:
+            return await interaction.response.send_message("⏳ Not your turn!", ephemeral=True)
 
-    start = time.time()
+        if view.board[self.y][self.x] != " ":
+            return await interaction.response.send_message("❌ Already taken!", ephemeral=True)
 
-    input_path = f"input_{file.filename}"
-    output_path = f"output_{file.filename}"
+        symbol = view.symbols[interaction.user]
+        view.board[self.y][self.x] = symbol
 
-    await file.save(input_path)
+        self.label = symbol
+        self.disabled = True
+        self.style = discord.ButtonStyle.success if symbol == "X" else discord.ButtonStyle.danger
 
-    # 🎛️ FFmpeg FILTERS (edit here)
-    ffmpeg_cmd = [
-        "ffmpeg",
-        "-i", input_path,
-        "-vf", "scale=1280:720,eq=contrast=1.2:brightness=0.05",
-        "-preset", "fast",
-        "-y",
-        output_path
-    ]
+        if view.check_winner(symbol):
+            for b in view.children:
+                b.disabled = True
+            view.stop()
 
-    await ctx.send("🎛️ Processing video...")
+            return await interaction.response.edit_message(
+                content=f"🏆 {interaction.user.mention} wins!",
+                view=view
+            )
 
-    subprocess.run(ffmpeg_cmd)
+        if view.is_draw():
+            for b in view.children:
+                b.disabled = True
+            view.stop()
 
-    end = time.time()
+            return await interaction.response.edit_message(
+                content="🤝 It's a draw!",
+                view=view
+            )
 
-    await ctx.send(
-        content=f"✅ Done in {round(end - start, 2)}s",
-        file=discord.File(output_path)
-    )
+        view.switch_turn()
 
-    os.remove(input_path)
-    os.remove(output_path)
+        await interaction.response.edit_message(
+            content=f"🎮 Turn: {view.current_player.mention}",
+            view=view
+        )
+
+
+class TicTacToeView(discord.ui.View):
+    def __init__(self, p1, p2):
+        super().__init__(timeout=120)
+
+        self.p1 = p1
+        self.p2 = p2
+        self.current_player = p1
+
+        self.symbols = {p1: "X", p2: "O"}
+        self.board = [[" " for _ in range(3)] for _ in range(3)]
+
+        for y in range(3):
+            for x in range(3):
+                self.add_item(TicTacToeButton(x, y))
+
+    def switch_turn(self):
+        self.current_player = self.p2 if self.current_player == self.p1 else self.p1
+
+    def check_winner(self, s):
+        b = self.board
+        return (
+            any(all(cell == s for cell in row) for row in b) or
+            any(all(b[r][c] == s for r in range(3)) for c in range(3)) or
+            all(b[i][i] == s for i in range(3)) or
+            all(b[i][2 - i] == s for i in range(3))
+        )
+
+    def is_draw(self):
+        return all(cell != " " for row in self.board for cell in row)
 
 # =========================================================
-# 🚀 RUN BOT
+# 🚀 READY
+# =========================================================
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+
+# =========================================================
+# RUN BOT
 # =========================================================
 
 bot.run(os.getenv("TOKEN"))
