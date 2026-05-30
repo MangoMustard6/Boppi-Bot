@@ -59,7 +59,6 @@ async def tictactoe(ctx):
 async def on_message(message):
     global auto_reply_enabled
 
-```
 if message.author.bot:
     return
 
