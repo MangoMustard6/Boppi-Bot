@@ -1,25 +1,23 @@
 import discord
 import os
 import random
-from datetime import timedelta
+import asyncio
 from discord.ext import commands
 
-# ================= INTENTS =================
+# ================= BOT SETUP =================
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
 
 bot = commands.Bot(
-    command_prefix="!",
+    command_prefix="b!",
     intents=intents,
     help_command=None
 )
 
-# ================= STATE =================
+# ================= DATA =================
 
-auto_reply_enabled = False
-warnings = {}
+gd_scores = {}
 
 jokes = [
     "Why did the bot cross the road? 🤖",
@@ -28,7 +26,7 @@ jokes = [
     "I would tell you a UDP joke, but you might not get it."
 ]
 
-# ================= EMBED HELPER =================
+# ================= EMBEDS =================
 
 def embed(title, description, color=0x00FFCC):
     return discord.Embed(
@@ -43,100 +41,45 @@ def embed(title, description, color=0x00FFCC):
 async def on_ready():
     print(f"Logged in as {bot.user}")
 
-@bot.event
-async def on_message(message):
-    global auto_reply_enabled
-
-    if message.author.bot:
-        return
-
-    # AI mention trigger
-    if bot.user in message.mentions:
-        await ai_chat(message, message.content)
-
-    # Auto reply
-    if auto_reply_enabled:
-        msg = message.content.lower()
-
-        if "hello" in msg:
-            await message.reply("👋 Hello!")
-        elif "hi" in msg:
-            await message.reply("😄 Hi there!")
-        elif "how are you" in msg:
-            await message.reply("🤖 I'm doing great!")
-        elif "bye" in msg:
-            await message.reply("👋 Goodbye!")
-        elif "ping" in msg:
-            await message.reply("🏓 Pong!")
-        else:
-            await message.reply(
-                random.choice([
-                    "🤖 Interesting!",
-                    "😄 Tell me more!",
-                    "👀 I see.",
-                    "✨ That's cool!",
-                    "🎉 Nice!"
-                ])
-            )
-
-    await bot.process_commands(message)
-
 # ================= HELP =================
 
 @bot.command()
 async def help(ctx):
     await ctx.send(embed=embed(
-        "📌 Bot Help",
+        "📌 Help Menu",
         "**Fun Commands**\n"
         "!ping\n"
         "!joke\n"
-        "!roll\n"
+        "!hello\n"
         "!coinflip\n"
-        "!say <message>\n"
-        "!ai <message>\n\n"
-
-        "**System**\n"
-        "!autoreply\n\n"
-
-        "**Moderation**\n"
-        "!modhelp"
-    ))
-
-@bot.command()
-async def modhelp(ctx):
-    await ctx.send(embed=embed(
-        "🛡️ Moderation Commands",
-        "!kick @user reason\n"
-        "!ban @user reason\n"
-        "!unban username\n"
-        "!timeout @user minutes\n"
-        "!clear amount\n"
-        "!warn @user reason"
+        "!roll\n"
+        "!say <message>\n\n"
+        "**Geometry Dash**\n"
+        "!gd <difficulty> <mode>\n"
+        "!gdleaderboard\n\n"
+        "🎨 Difficulties: Easy, Normal, Hard, Demon\n"
+        "🕹️ Modes: Cube, Ship, Wave"
     ))
 
 # ================= FUN COMMANDS =================
 
 @bot.command()
 async def ping(ctx):
-    await ctx.send(
-        embed=embed(
-            "🏓 Pong!",
-            f"Latency: {round(bot.latency * 1000)}ms"
-        )
-    )
+    await ctx.send(embed=embed(
+        "🏓 Pong!",
+        f"Latency: {round(bot.latency * 1000)}ms"
+    ))
 
 @bot.command()
 async def joke(ctx):
-    await ctx.send(
-        embed=embed(
-            "😂 Joke",
-            random.choice(jokes)
-        )
-    )
+    await ctx.send(embed=embed(
+        "😂 Joke",
+        random.choice(jokes)
+    ))
 
 @bot.command()
-async def roll(ctx):
-    await ctx.send(f"🎲 You rolled: {random.randint(1, 6)}")
+async def hello(ctx):
+    await ctx.send(f"👋 Hello {ctx.author.mention}!")
 
 @bot.command()
 async def coinflip(ctx):
@@ -145,140 +88,207 @@ async def coinflip(ctx):
     )
 
 @bot.command()
+async def roll(ctx):
+    await ctx.send(
+        f"🎲 You rolled {random.randint(1, 6)}"
+    )
+
+@bot.command()
 async def say(ctx, *, message):
     await ctx.send(message)
 
-# ================= AUTOREPLY =================
+# ================= GEOMETRY DASH MINI GAME =================
+
+class GDView(discord.ui.View):
+    def __init__(self, player, difficulty="Normal", mode="Cube"):
+        super().__init__(timeout=60)
+
+        self.player = player
+        self.score = 0
+        self.coins = 0
+        self.alive = True
+        self.jumping = False
+
+        self.difficulty = difficulty
+        self.mode = mode
+
+        speeds = {
+            "Easy": 3,
+            "Normal": 2,
+            "Hard": 1.5,
+            "Demon": 1
+        }
+
+        self.delay = speeds[difficulty]
+
+    @discord.ui.button(
+        label="⬆️ Jump",
+        style=discord.ButtonStyle.green
+    )
+    async def jump(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+        if interaction.user != self.player:
+            return await interaction.response.send_message(
+                "❌ This isn't your game!",
+                ephemeral=True
+            )
+
+        self.jumping = True
+        await interaction.response.defer()
+
+    async def run_game(self, message):
+        gd_messages = [
+            "🔥 FIRE IN THE HOLE!",
+            "🎵 Stereo Madness!",
+            "⚡ Wave section!",
+            "🛸 Ship section!",
+            "⭐ Coin collected!",
+            "💀 Demon difficulty!"
+        ]
+
+        while self.alive:
+            await asyncio.sleep(self.delay)
+
+            spike = random.randint(1, 4)
+
+            if spike == 1:
+                if self.jumping:
+                    self.score += 1
+                    self.jumping = False
+
+                    if random.randint(1, 5) == 1:
+                        self.coins += 1
+
+                    await message.edit(
+                        content=(
+                            f"🟦 Jump successful!\n"
+                            f"🏆 Score: {self.score}\n"
+                            f"⭐ Coins: {self.coins}\n"
+                            f"🎨 Difficulty: {self.difficulty}\n"
+                            f"🕹️ Mode: {self.mode}\n\n"
+                            f"{random.choice(gd_messages)}"
+                        ),
+                        view=self
+                    )
+                else:
+                    self.alive = False
+
+                    gd_scores[self.player.id] = max(
+                        gd_scores.get(self.player.id, 0),
+                        self.score
+                    )
+
+                    await message.edit(
+                        content=(
+                            f"💀 GAME OVER!\n\n"
+                            f"🏆 Score: {self.score}\n"
+                            f"⭐ Coins: {self.coins}"
+                        ),
+                        view=None
+                    )
+            else:
+                self.score += 1
+
+                await message.edit(
+                    content=(
+                        f"⬜ Safe...\n"
+                        f"🏆 Score: {self.score}\n"
+                        f"⭐ Coins: {self.coins}\n"
+                        f"🎨 Difficulty: {self.difficulty}\n"
+                        f"🕹️ Mode: {self.mode}"
+                    ),
+                    view=self
+                )
 
 @bot.command()
-@commands.has_permissions(administrator=True)
-async def autoreply(ctx):
-    global auto_reply_enabled
+async def gd(ctx, difficulty="Normal", mode="Cube"):
+    difficulty = difficulty.capitalize()
+    mode = mode.capitalize()
 
-    auto_reply_enabled = not auto_reply_enabled
-
-    await ctx.send(
-        "🤖 Auto Reply Enabled!"
-        if auto_reply_enabled
-        else "🔇 Auto Reply Disabled!"
-    )
-
-# ================= SIMPLE AI =================
-
-async def ai_chat(message, text):
-    prompt = text.replace(
-        f"<@{bot.user.id}>",
-        ""
-    ).strip()
-
-    if not prompt:
-        return await message.reply("Ask me something 🤖")
-
-    responses = [
-        f"🤖 Interesting question: {prompt}",
-        "🧠 Let me think about that.",
-        "✨ That's pretty cool.",
-        "👀 I understand what you mean.",
-        "🤖 I'm still learning, but that's interesting!"
+    valid_difficulties = [
+        "Easy",
+        "Normal",
+        "Hard",
+        "Demon"
     ]
 
-    await message.reply(
+    valid_modes = [
+        "Cube",
+        "Ship",
+        "Wave"
+    ]
+
+    if difficulty not in valid_difficulties:
+        return await ctx.send(
+            "❌ Difficulties: Easy, Normal, Hard, Demon"
+        )
+
+    if mode not in valid_modes:
+        return await ctx.send(
+            "❌ Modes: Cube, Ship, Wave"
+        )
+
+    view = GDView(
+        ctx.author,
+        difficulty,
+        mode
+    )
+
+    msg = await ctx.send(
+        f"🎮 Geometry Dash Mini\n"
+        f"🎨 Difficulty: {difficulty}\n"
+        f"🕹️ Mode: {mode}\n\n"
+        f"Press **Jump** to avoid spikes!",
+        view=view
+    )
+
+    asyncio.create_task(
+        view.run_game(msg)
+    )
+
+# ================= LEADERBOARD =================
+
+@bot.command()
+async def gdleaderboard(ctx):
+    if not gd_scores:
+        return await ctx.send(
+            "🏆 No scores recorded yet!"
+        )
+
+    sorted_scores = sorted(
+        gd_scores.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    leaderboard = ""
+
+    for pos, (user_id, score) in enumerate(
+        sorted_scores[:10],
+        start=1
+    ):
+        user = bot.get_user(user_id)
+
+        if user:
+            leaderboard += (
+                f"{pos}. {user.name} — {score}\n"
+            )
+
+    await ctx.send(
         embed=embed(
-            "🤖 AI Response",
-            random.choice(responses),
-            0x9B59B6
+            "🏆 Geometry Dash Leaderboard",
+            leaderboard
         )
     )
 
-@bot.command()
-async def ai(ctx, *, message):
-    await ai_chat(ctx.message, message)
-
-# ================= MODERATION =================
-
-@bot.command()
-@commands.has_permissions(kick_members=True)
-async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
-    await member.kick(reason=reason)
-
-    await ctx.send(embed=embed(
-        "👢 Member Kicked",
-        f"{member.mention}\nReason: {reason}",
-        0xE67E22
-    ))
-
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
-    await member.ban(reason=reason)
-
-    await ctx.send(embed=embed(
-        "🔨 Member Banned",
-        f"{member.mention}\nReason: {reason}",
-        0xE74C3C
-    ))
-
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def unban(ctx, *, username):
-    banned_users = await ctx.guild.bans()
-
-    for entry in banned_users:
-        user = entry.user
-
-        if user.name == username:
-            await ctx.guild.unban(user)
-
-            return await ctx.send(
-                embed=embed(
-                    "♻️ Member Unbanned",
-                    str(user)
-                )
-            )
-
-    await ctx.send("❌ User not found.")
-
-@bot.command()
-@commands.has_permissions(moderate_members=True)
-async def timeout(ctx, member: discord.Member, minutes: int):
-    await member.timeout(
-        timedelta(minutes=minutes)
-    )
-
-    await ctx.send(embed=embed(
-        "⏳ Timeout Applied",
-        f"{member.mention}\nDuration: {minutes} minutes"
-    ))
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def clear(ctx, amount: int):
-    await ctx.channel.purge(limit=amount + 1)
-
-    msg = await ctx.send(embed=embed(
-        "🧹 Messages Cleared",
-        f"Deleted {amount} messages"
-    ))
-
-    await msg.delete(delay=3)
-
-@bot.command()
-@commands.has_permissions(kick_members=True)
-async def warn(ctx, member: discord.Member, *, reason="No reason provided"):
-    warnings[member.id] = warnings.get(member.id, 0) + 1
-
-    await ctx.send(embed=embed(
-        "⚠️ Warning Issued",
-        f"{member.mention}\n"
-        f"Reason: {reason}\n"
-        f"Warnings: {warnings[member.id]}"
-    ))
-
-# ================= RUN =================
+# ================= RUN BOT =================
 
 token = os.getenv("TOKEN")
 
 if not token:
-    print("❌ TOKEN not found!")
+    print("❌ TOKEN environment variable not found!")
 else:
     bot.run(token)
