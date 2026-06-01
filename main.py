@@ -4,13 +4,13 @@ import random
 import asyncio
 from discord.ext import commands
 
-# ================= BOT SETUP =================
+# ================= BOT =================
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(
-    command_prefix="b!",
+    command_prefix="bop!",
     intents=intents,
     help_command=None
 )
@@ -21,17 +21,17 @@ gd_scores = {}
 
 jokes = [
     "Why did the bot cross the road? 🤖",
-    "I tried to code a joke... it crashed.",
-    "Python is my sleep schedule.",
-    "I would tell you a UDP joke, but you might not get it."
+    "Python crashed again 💀",
+    "UDP packets got lost.",
+    "My CPU is on vacation."
 ]
 
 # ================= EMBEDS =================
 
-def embed(title, description, color=0x00FFCC):
+def embed(title, desc, color=0x00FFCC):
     return discord.Embed(
         title=title,
-        description=description,
+        description=desc,
         color=color
     )
 
@@ -40,34 +40,36 @@ def embed(title, description, color=0x00FFCC):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+    print(f"discord.py version: {discord.__version__}")
 
 # ================= HELP =================
 
 @bot.command()
 async def help(ctx):
     await ctx.send(embed=embed(
-        "📌 Help Menu",
-        "**Fun Commands**\n"
+        "📌 Commands",
+        "**Fun**\n"
         "!ping\n"
         "!joke\n"
         "!hello\n"
-        "!coinflip\n"
         "!roll\n"
+        "!coinflip\n"
         "!say <message>\n\n"
         "**Geometry Dash**\n"
-        "!gd <difficulty> <mode>\n"
-        "!gdleaderboard\n\n"
-        "🎨 Difficulties: Easy, Normal, Hard, Demon\n"
-        "🕹️ Modes: Cube, Ship, Wave"
+        "!gd Easy\n"
+        "!gd Normal\n"
+        "!gd Hard\n"
+        "!gd Demon\n"
+        "!gdleaderboard"
     ))
 
-# ================= FUN COMMANDS =================
+# ================= FUN =================
 
 @bot.command()
 async def ping(ctx):
     await ctx.send(embed=embed(
         "🏓 Pong!",
-        f"Latency: {round(bot.latency * 1000)}ms"
+        f"{round(bot.latency * 1000)}ms"
     ))
 
 @bot.command()
@@ -82,44 +84,44 @@ async def hello(ctx):
     await ctx.send(f"👋 Hello {ctx.author.mention}!")
 
 @bot.command()
-async def coinflip(ctx):
+async def roll(ctx):
     await ctx.send(
-        f"🪙 {random.choice(['Heads', 'Tails'])}"
+        f"🎲 {random.randint(1,6)}"
     )
 
 @bot.command()
-async def roll(ctx):
+async def coinflip(ctx):
     await ctx.send(
-        f"🎲 You rolled {random.randint(1, 6)}"
+        f"🪙 {random.choice(['Heads','Tails'])}"
     )
 
 @bot.command()
 async def say(ctx, *, message):
     await ctx.send(message)
 
-# ================= GEOMETRY DASH MINI GAME =================
+# ================= GEOMETRY DASH =================
 
 class GDView(discord.ui.View):
-    def __init__(self, player, difficulty="Normal", mode="Cube"):
-        super().__init__(timeout=60)
+    def __init__(self, player, difficulty):
+        super().__init__(timeout=120)
 
         self.player = player
         self.score = 0
         self.coins = 0
-        self.alive = True
         self.jumping = False
+        self.alive = True
+
+        self.track = ["⬜"] * 12
+        self.player_pos = 2
+
+        self.delay = {
+            "Easy": 2.0,
+            "Normal": 1.5,
+            "Hard": 1.0,
+            "Demon": 0.7
+        }[difficulty]
 
         self.difficulty = difficulty
-        self.mode = mode
-
-        speeds = {
-            "Easy": 3,
-            "Normal": 2,
-            "Hard": 1.5,
-            "Demon": 1
-        }
-
-        self.delay = speeds[difficulty]
 
     @discord.ui.button(
         label="⬆️ Jump",
@@ -132,163 +134,152 @@ class GDView(discord.ui.View):
     ):
         if interaction.user != self.player:
             return await interaction.response.send_message(
-                "❌ This isn't your game!",
+                "❌ Not your game!",
                 ephemeral=True
             )
 
         self.jumping = True
         await interaction.response.defer()
 
-    async def run_game(self, message):
-        gd_messages = [
-            "🔥 FIRE IN THE HOLE!",
-            "🎵 Stereo Madness!",
-            "⚡ Wave section!",
-            "🛸 Ship section!",
-            "⭐ Coin collected!",
-            "💀 Demon difficulty!"
-        ]
+    def render_track(self):
+        display = self.track.copy()
+        display[self.player_pos] = "🟦"
+        return "".join(display)
 
+    async def run(self, message):
         while self.alive:
+
             await asyncio.sleep(self.delay)
 
-            spike = random.randint(1, 4)
+            self.track.pop(0)
 
-            if spike == 1:
+            roll = random.randint(1, 10)
+
+            if roll <= 2:
+                self.track.append("🔺")
+            elif roll == 3:
+                self.track.append("⭐")
+            else:
+                self.track.append("⬜")
+
+            tile = self.track[self.player_pos]
+
+            if tile == "⭐":
+                self.coins += 1
+                self.track[self.player_pos] = "⬜"
+
+            elif tile == "🔺":
+
                 if self.jumping:
-                    self.score += 1
+                    self.score += 5
                     self.jumping = False
-
-                    if random.randint(1, 5) == 1:
-                        self.coins += 1
-
-                    await message.edit(
-                        content=(
-                            f"🟦 Jump successful!\n"
-                            f"🏆 Score: {self.score}\n"
-                            f"⭐ Coins: {self.coins}\n"
-                            f"🎨 Difficulty: {self.difficulty}\n"
-                            f"🕹️ Mode: {self.mode}\n\n"
-                            f"{random.choice(gd_messages)}"
-                        ),
-                        view=self
-                    )
                 else:
                     self.alive = False
+                    break
 
-                    gd_scores[self.player.id] = max(
-                        gd_scores.get(self.player.id, 0),
-                        self.score
-                    )
-
-                    await message.edit(
-                        content=(
-                            f"💀 GAME OVER!\n\n"
-                            f"🏆 Score: {self.score}\n"
-                            f"⭐ Coins: {self.coins}"
-                        ),
-                        view=None
-                    )
             else:
                 self.score += 1
 
-                await message.edit(
-                    content=(
-                        f"⬜ Safe...\n"
-                        f"🏆 Score: {self.score}\n"
-                        f"⭐ Coins: {self.coins}\n"
-                        f"🎨 Difficulty: {self.difficulty}\n"
-                        f"🕹️ Mode: {self.mode}"
-                    ),
-                    view=self
-                )
+            text = (
+                f"🎮 Geometry Dash ({self.difficulty})\n"
+                f"🏆 Score: {self.score}\n"
+                f"⭐ Coins: {self.coins}\n\n"
+                f"{self.render_track()}"
+            )
+
+            await message.edit(
+                content=text,
+                view=self
+            )
+
+        gd_scores[self.player.id] = max(
+            gd_scores.get(self.player.id, 0),
+            self.score
+        )
+
+        for child in self.children:
+            child.disabled = True
+
+        await message.edit(
+            content=(
+                f"💀 GAME OVER\n\n"
+                f"🏆 Score: {self.score}\n"
+                f"⭐ Coins: {self.coins}"
+            ),
+            view=self
+        )
+
+# ================= GD COMMAND =================
 
 @bot.command()
-async def gd(ctx, difficulty="Normal", mode="Cube"):
-    difficulty = difficulty.capitalize()
-    mode = mode.capitalize()
+async def gd(ctx, difficulty="Normal"):
 
-    valid_difficulties = [
+    difficulty = difficulty.capitalize()
+
+    if difficulty not in [
         "Easy",
         "Normal",
         "Hard",
         "Demon"
-    ]
-
-    valid_modes = [
-        "Cube",
-        "Ship",
-        "Wave"
-    ]
-
-    if difficulty not in valid_difficulties:
+    ]:
         return await ctx.send(
-            "❌ Difficulties: Easy, Normal, Hard, Demon"
-        )
-
-    if mode not in valid_modes:
-        return await ctx.send(
-            "❌ Modes: Cube, Ship, Wave"
+            "Use: Easy, Normal, Hard, Demon"
         )
 
     view = GDView(
         ctx.author,
-        difficulty,
-        mode
+        difficulty
     )
 
     msg = await ctx.send(
-        f"🎮 Geometry Dash Mini\n"
-        f"🎨 Difficulty: {difficulty}\n"
-        f"🕹️ Mode: {mode}\n\n"
-        f"Press **Jump** to avoid spikes!",
+        f"🎮 Starting Geometry Dash ({difficulty})...\n\n"
+        f"{view.render_track()}",
         view=view
     )
 
     asyncio.create_task(
-        view.run_game(msg)
+        view.run(msg)
     )
 
 # ================= LEADERBOARD =================
 
 @bot.command()
 async def gdleaderboard(ctx):
+
     if not gd_scores:
         return await ctx.send(
-            "🏆 No scores recorded yet!"
+            "🏆 No scores yet!"
         )
 
-    sorted_scores = sorted(
+    board = sorted(
         gd_scores.items(),
         key=lambda x: x[1],
         reverse=True
     )
 
-    leaderboard = ""
+    text = ""
 
-    for pos, (user_id, score) in enumerate(
-        sorted_scores[:10],
+    for pos, (uid, score) in enumerate(
+        board[:10],
         start=1
     ):
-        user = bot.get_user(user_id)
+        user = bot.get_user(uid)
 
         if user:
-            leaderboard += (
+            text += (
                 f"{pos}. {user.name} — {score}\n"
             )
 
-    await ctx.send(
-        embed=embed(
-            "🏆 Geometry Dash Leaderboard",
-            leaderboard
-        )
-    )
+    await ctx.send(embed=embed(
+        "🏆 Geometry Dash Leaderboard",
+        text
+    ))
 
-# ================= RUN BOT =================
+# ================= RUN =================
 
-token = os.getenv("TOKEN")
+TOKEN = os.getenv("TOKEN")
 
-if not token:
-    print("❌ TOKEN environment variable not found!")
+if not TOKEN:
+    print("TOKEN environment variable missing.")
 else:
-    bot.run(token)
+    bot.run(TOKEN)
